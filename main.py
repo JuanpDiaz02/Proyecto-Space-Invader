@@ -1,92 +1,187 @@
 import pygame
 import sys
 import random
-from enemigos import Enemigos
+import importlib
+import os
+from pantalla_inicio import pantalla_inicio
+from pantalla_gameover import mostrar_pantalla_gameover
+from sonidos import (
+    reproducir_sonido_disparo,
+    reproducir_sonido_colision,
+    reproducir_sonido_gameover,
+    reproducir_sonido_inicio,
+    iniciar_musica_fondo,
+    detener_musica_fondo,
+    reproducir_sonido_victoria
+)
+from nave import Nave
 
-
-# Inicializar Pygame
 pygame.init()
 
-# Tamaño de pantalla de juego
 ANCHO, ALTO = 800, 500
 pantalla = pygame.display.set_mode((ANCHO, ALTO))
 pygame.display.set_caption("Space Invader 🚀")
 
-# Colores
-NEGRO = (0, 0, 0) #Fondo pantalla
-BLANCO = (255, 255, 255) #Bala de la nave
+NEGRO = (0, 0, 0)
+BLANCO = (255, 255, 255)
 
-# Nave
-nave_img = pygame.Surface((50, 10)) # Cambia el tamaño del jugador
-nave_img.fill((0, 255, 0))
-posicion_nave_x = ANCHO // 2
-posicion_nave_y = ALTO - 10
-velocidad_nave = 5
+fuente = pygame.font.Font("assets/fuentes/PressStart2P.ttf", 20)
 
-# Lista de disparos en eje y
-posiciones_disparos = []
-velocidad_disparo = 15
-grupo_enemigos = pygame.sprite.Group()
-
-imagenes_aliens = [
-    "assets/alien_1.png",
-    "assets/alien_2.png",
-    "assets/alien_3.png",
-    "assets/alien_4.png"
-] 
-
-# Acá lo que hacemos basicamente es una lista y bucles para crear a los enemigos en forma de matriz
-for fila in range(4):  # Con 4 filas
-    for columna in range(6):  #Y 6 enemigos por fila
-        x = 100 + columna * 100
-        y = 50 + fila * 70
-        imagen_aleatoria = random.choice(imagenes_aliens)  # Elige una imagen al azar
-        enemigo = Enemigos(x, y, imagen_aleatoria)
-        grupo_enemigos.add(enemigo)
-
-# Bucle principal
-reloj = pygame.time.Clock()
-movimiento_lateral = True
-
-while movimiento_lateral:
-    reloj.tick(60)  # 60 FPS
-
-    for evento in pygame.event.get():
-        if evento.type == pygame.QUIT:
-            movimiento_lateral = False
-        if evento.type == pygame.KEYDOWN:
-            if evento.key == pygame.K_SPACE:
-                # Crear disparo
-                posiciones_disparos.append(pygame.Rect(posicion_nave_x + 25, posicion_nave_y, 5, 15)) # Cambia el tamaño del disparo
-
-        
-    # Teclas para mover la nave
-    teclas_movimiento = pygame.key.get_pressed()
-    if teclas_movimiento[pygame.K_LEFT] and posicion_nave_x > 0:
-        posicion_nave_x -= velocidad_nave
-    if teclas_movimiento[pygame.K_RIGHT] and posicion_nave_x < ANCHO - 50:
-        posicion_nave_x += velocidad_nave
-                
-    # Mover los disparos hacia arriba 
-    for disparo in posiciones_disparos:
-        disparo.y -= velocidad_disparo
-
-    # Eliminar disparos que salieron de la pantalla
-    posiciones_disparos = list(filter(lambda d: d.y > 0, posiciones_disparos))
-
-    # Dibujar fondo, jugador y disparos de nave
+def mostrar_texto_nivel(nivel):
+    texto_nivel = fuente.render(f"Nivel {nivel}", True, BLANCO)
     pantalla.fill(NEGRO)
-    pantalla.blit(nave_img, (posicion_nave_x, posicion_nave_y))
-    grupo_enemigos.update()
-    grupo_enemigos.draw(pantalla)
-    for disparo in posiciones_disparos:
-        pygame.draw.rect(pantalla, BLANCO, disparo)
+    pantalla.blit(texto_nivel, (ANCHO // 2 - texto_nivel.get_width() // 2, ALTO // 2))
     pygame.display.flip()
+    pygame.time.delay(2000)
 
-# Salir del juego
+def cargar_imagenes_aliens():
+    alien_imagenes = {}
+    for i in range(1, 5):
+        imagenes = []
+        base_path = f"assets/aliens/alien_{i}.png"
+        frame_2 = f"assets/aliens/alien_{i}_frame_2.png"
+        frame_3 = f"assets/aliens/alien_{i}_frame_3.png"
+        for path in [base_path, frame_2, frame_3]:
+            if os.path.exists(path):
+                imagenes.append(path)
+        alien_imagenes[i] = imagenes
+    return alien_imagenes
+
+imagenes_aliens = cargar_imagenes_aliens()
+
+reloj = pygame.time.Clock()
+MAX_NIVELES = 5
+
+# Estados posibles del juego
+ESTADO_MENU = "MENU"
+ESTADO_JUGANDO = "JUGANDO"
+ESTADO_GAMEOVER = "GAMEOVER"
+
+estado = ESTADO_MENU
+nivel_actual = 1
+jugando = True
+
+
+ 
+while jugando:
+    if estado == ESTADO_MENU:
+        iniciar_musica_fondo()
+        pantalla_inicio(pantalla)
+        detener_musica_fondo()
+
+        # Esperar a que el jugador presione una tecla para iniciar
+        
+        nivel_actual = 1
+        estado = ESTADO_JUGANDO
+
+    elif estado == ESTADO_JUGANDO:
+        try:
+            modulo_nivel = importlib.import_module(f"niveles.nivel_{nivel_actual}")
+            cargar_funcion = getattr(modulo_nivel, f"cargar_nivel{nivel_actual}")
+        except (ModuleNotFoundError, AttributeError) as e:
+            print(f"Error al cargar el nivel {nivel_actual}: {e}")
+            jugando = False
+            continue
+
+        enemigos_config, velocidad_disparo, musica_nivel = cargar_funcion(ANCHO, ALTO, fuente, imagenes_aliens)
+
+        pygame.mixer.music.load(musica_nivel)
+        pygame.mixer.music.play(-1)
+
+        mostrar_texto_nivel(nivel_actual)
+
+        nave = Nave(ANCHO // 2, ALTO - 40)
+        grupo_nave = pygame.sprite.GroupSingle(nave)
+        grupo_enemigos = enemigos_config
+        posiciones_disparos = []
+        disparos_enemigos = []
+
+        jugando_nivel = True
+
+        while jugando_nivel:
+            reloj.tick(60)
+
+            for evento in pygame.event.get():
+                if evento.type == pygame.QUIT:
+                    jugando = False
+                    jugando_nivel = False
+                    break
+                elif evento.type == pygame.KEYDOWN and evento.key == pygame.K_SPACE:
+                    disparo = pygame.Rect(nave.rect.centerx - 2, nave.rect.top, 5, 15)
+                    posiciones_disparos.append(disparo)
+                    reproducir_sonido_disparo()
+
+            teclas = pygame.key.get_pressed()
+            grupo_nave.update(teclas, ANCHO)
+
+            # Movimiento disparos jugador
+            for disparo in posiciones_disparos:
+                disparo.y -= velocidad_disparo
+            posiciones_disparos = [d for d in posiciones_disparos if d.y > 0]
+
+            # Movimiento disparos enemigos
+            for disparo in disparos_enemigos:
+                disparo.y += 5
+            disparos_enemigos = [d for d in disparos_enemigos if d.y < ALTO]
+
+            # Disparos enemigos aleatorios
+            if random.randint(0, 100) < 2:
+                enemigos_lista = list(grupo_enemigos)
+                if enemigos_lista:
+                    atacante = random.choice(enemigos_lista)
+                    disparo_enemigo = pygame.Rect(atacante.rect.centerx - 2, atacante.rect.bottom, 5, 15)
+                    disparos_enemigos.append(disparo_enemigo)
+
+            # Colisión disparo jugador con enemigo
+            for disparo in posiciones_disparos[:]:
+                for enemigo in grupo_enemigos:
+                    if enemigo.rect.colliderect(disparo):
+                        reproducir_sonido_colision()
+                        grupo_enemigos.remove(enemigo)
+                        posiciones_disparos.remove(disparo)
+                        break
+
+            # Colisión disparo enemigo con nave (GAME OVER)
+            for disparo in disparos_enemigos[:]:
+                if nave.rect.colliderect(disparo):
+                    reproducir_sonido_gameover()
+                    detener_musica_fondo()
+                    mostrar_pantalla_gameover(pantalla)
+                    estado = ESTADO_GAMEOVER
+                    jugando_nivel = False
+                    break
+
+            grupo_enemigos.update()
+
+            pantalla.fill(NEGRO)
+            grupo_nave.draw(pantalla)
+            grupo_enemigos.draw(pantalla)
+
+            for disparo in posiciones_disparos:
+                pygame.draw.rect(pantalla, BLANCO, disparo)
+            for disparo in disparos_enemigos:
+                pygame.draw.rect(pantalla, (255, 0, 0), disparo)
+
+            # Nivel completado
+            if len(grupo_enemigos) == 0:
+                reproducir_sonido_victoria()
+                detener_musica_fondo()
+                texto_victoria = fuente.render("¡Nivel Completado!", True, BLANCO)
+                pantalla.fill(NEGRO)
+                pantalla.blit(texto_victoria, (ANCHO // 2 - texto_victoria.get_width() // 2, ALTO // 2))
+                pygame.display.flip()
+                pygame.time.delay(3000)
+                nivel_actual += 1
+                if nivel_actual > MAX_NIVELES:
+                    estado = ESTADO_MENU  # Volver al menú después de terminar todos los niveles
+                jugando_nivel = False
+
+            pygame.display.flip()
+
+    elif estado == ESTADO_GAMEOVER:
+        # Esperar a que presione tecla para volver al menú
+        estado = ESTADO_MENU
+
 pygame.quit()
 sys.exit()
 
-#revision y control que se apliquen todos los los conceptos aprendido en clases 
-#matrices lo podemos usar en los puntajes del jugador pero todavia no "sabemos" archivos x eso no lo usamos.
-#se hacer archivos(nacho) pero eso no podria aplicarlo ahora xq eso entraria en lo q es el 100% del juego.
