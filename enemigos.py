@@ -1,54 +1,46 @@
 import pygame
 
-class Enemigos(pygame.sprite.Sprite):
-    def __init__(self, x, y, image_paths, pantalla_ancho=800):
-        super().__init__()
-        if isinstance(image_paths, str):
-            image_paths = [image_paths]
+import pygame
 
-        # Cargar y escalar todas las imágenes proporcionadas
-        self.imagenes = [
-            pygame.transform.scale(pygame.image.load(path).convert_alpha(), (50, 50))
-            for path in image_paths
-        ]
-        
-        self.index_imagen = 0
-        self.image = self.imagenes[self.index_imagen]
-        self.rect = self.image.get_rect(topleft=(x, y))
+def crear_enemigo(x, y, image_paths, pantalla_ancho=800):
+    if isinstance(image_paths, str):
+        image_paths = [image_paths]
 
-        self.velocidad_x = 1
-        self.velocidad_y = 10
-        self.contador_animacion = 0
-        self.frecuencia_animacion = 20
-        self.pantalla_ancho = pantalla_ancho
+    imagenes = [
+        pygame.transform.scale(pygame.image.load(path).convert_alpha(), (40, 40))  # Tamaño más pequeño
+        for path in image_paths
+    ]
 
-        # Lambda que verifica si está dentro del área visible
-        self.esta_en_pantalla = lambda x: 0 <= x <= (self.pantalla_ancho - self.rect.width)
+    return {
+        "imagenes": imagenes,
+        "index_imagen": 0,
+        "rect": imagenes[0].get_rect(topleft=(x, y)),
+        "velocidad_x": 1,
+        "velocidad_y": 10,
+        "contador_animacion": 0,
+        "frecuencia_animacion": 20,
+        "pantalla_ancho": pantalla_ancho
+    }
 
-    def update(self):
-        # Movimiento horizontal
-        self.rect.x += self.velocidad_x
+def actualizar_enemigo(enemigo):
+    enemigo["rect"].x += enemigo["velocidad_x"]
 
-        # Si se sale de los límites, cambia de dirección y baja
-        if not self.esta_en_pantalla(self.rect.x):
-            self.velocidad_x *= -1
-            self.rect.y += self.velocidad_y
-            if self.rect.x < 0:
-                self.rect.x = 0
-            elif self.rect.x > self.pantalla_ancho - self.rect.width:
-                self.rect.x = self.pantalla_ancho - self.rect.width
+    if enemigo["rect"].x < 0 or enemigo["rect"].x > enemigo["pantalla_ancho"] - enemigo["rect"].width:
+        enemigo["velocidad_x"] *= -1
+        enemigo["rect"].y += enemigo["velocidad_y"]
+        if enemigo["rect"].x < 0:
+            enemigo["rect"].x = 0
+        elif enemigo["rect"].x > enemigo["pantalla_ancho"] - enemigo["rect"].width:
+            enemigo["rect"].x = enemigo["pantalla_ancho"] - enemigo["rect"].width
 
-        # Animación de cambio de frame
-        self.contador_animacion += 1
-        if self.contador_animacion >= self.frecuencia_animacion:
-            self.contador_animacion = 0
-            self.index_imagen = (self.index_imagen + 1) % len(self.imagenes)
-            self.image = self.imagenes[self.index_imagen]
+    enemigo["contador_animacion"] += 1
+    if enemigo["contador_animacion"] >= enemigo["frecuencia_animacion"]:
+        enemigo["contador_animacion"] = 0
+        enemigo["index_imagen"] = (enemigo["index_imagen"] + 1) % len(enemigo["imagenes"])
 
-    def disparar(self):
-        """
-        Retorna un pygame.Rect que representa el disparo del enemigo,
-        posicionado justo en el centro bajo el enemigo.
-        """
-        disparo_rect = pygame.Rect(self.rect.centerx - 2, self.rect.bottom, 5, 15)
-        return disparo_rect
+def dibujar_enemigo(pantalla, enemigo):
+    imagen_actual = enemigo["imagenes"][enemigo["index_imagen"]]
+    pantalla.blit(imagen_actual, enemigo["rect"])
+
+def disparo_enemigo(enemigo):
+    return pygame.Rect(enemigo["rect"].centerx - 2, enemigo["rect"].bottom, 5, 15)

@@ -1,20 +1,35 @@
-import random
 import pygame
-from enemigos import Enemigos
+import random
+from enemigos import actualizar_enemigo, dibujar_enemigo, disparo_enemigo
+
+def crear_enemigo(x, y, imagenes, pantalla_ancho):
+    enemigo = {
+        "rect": pygame.Rect(x, y, imagenes[0].get_width(), imagenes[0].get_height()),
+        "imagenes": imagenes,
+        "index_imagen": 0,
+        "velocidad_x": 5,
+        "velocidad_y": 10,
+        "pantalla_ancho": pantalla_ancho,
+        "contador_animacion": 0,
+        "frecuencia_animacion": 10,
+    }
+    return enemigo
 
 def cargar_nivel4(ANCHO, ALTO, fuente, imagenes_aliens):
-    grupo_enemigos = pygame.sprite.Group()
-    for fila in range(7):
-        for columna in range(9):
-            x = 50 + columna * 80
-            y = 20 + fila * 55
+    lista_enemigos = []
+    for fila in range(5):
+        for columna in range(7):
+            x = 70 + columna * 90
+            y = 40 + fila * 65
             
-            tipo_alien = random.choice([1, 2, 3, 4])  # Elegir tipo alien válido
-            imagenes_para_enemigo = imagenes_aliens[tipo_alien]  # Obtener sus imágenes
+            tipo_alien = random.choice([1, 2, 3, 4])
+            imagenes_para_enemigo = imagenes_aliens[tipo_alien]
 
-            enemigo = Enemigos(x, y, imagenes_para_enemigo)
-            grupo_enemigos.add(enemigo)
+            enemigo = crear_enemigo(x, y, imagenes_para_enemigo, ANCHO)
+            lista_enemigos.append(enemigo)
 
-    velocidad_disparo = 23
-    musica_nivel = "assets/sonidos/nivel_4.mp3"
-    return grupo_enemigos, velocidad_disparo, musica_nivel
+    velocidad_disparo = 25
+    musica_nivel = "assets/sonidos/nivel_2.mp3"
+
+    return lista_enemigos, velocidad_disparo, musica_nivel
+

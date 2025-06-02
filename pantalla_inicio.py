@@ -11,7 +11,8 @@ def pantalla_inicio(pantalla):
     reloj = pygame.time.Clock()
 
     # Crear estrellas (listas de tuplas)
-    estrellas = [(random.randint(0, ANCHO), random.randint(0, ALTO)) for _ in range(100)]
+    estrellas = tuple((random.randint(0, ANCHO), random.randint(0, ALTO)) for _ in range(100))
+
 
     # Cargar fuente y logo
     fuente = pygame.font.Font("assets/fuentes/PressStart2P.ttf", 20)

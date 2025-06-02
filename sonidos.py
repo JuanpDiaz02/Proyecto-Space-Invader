@@ -9,6 +9,7 @@ sonido_colision = pygame.mixer.Sound("assets/sonidos/explosion.wav")
 sonido_gameover = pygame.mixer.Sound("assets/sonidos/game_over.mp3")
 sonido_inicio = pygame.mixer.Sound("assets/sonidos/tecla_inicio.mp3")
 sonido_victoria = pygame.mixer.Sound("assets/sonidos/victoria.mp3")
+sonido_explosion_nave = pygame.mixer.Sound ("assets/sonidos/explosion_nave.mp3")
 
 # Ruta de música de fondo (pantalla de inicio o nivel)
 musica_fondo = "assets/sonidos/musica_fondo.mp3"
@@ -32,6 +33,10 @@ def reproducir_sonido_inicio():
 def reproducir_sonido_victoria():
     detener_musica_fondo()
     sonido_victoria.play()
+    
+def reproducir_sonido_explosion_nave():
+    detener_musica_fondo()
+    sonido_explosion_nave.play()
 
 # --- Música de fondo ---
 def iniciar_musica_fondo():
